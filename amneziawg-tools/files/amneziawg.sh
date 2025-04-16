@@ -4,9 +4,9 @@
 
 # shellcheck disable=SC1091,SC3003,SC3043
 
-WG=/usr/bin/awg
-if [ ! -x $WG ]; then
-	logger -t "amneziawg" "error: missing amneziawg-tools (${WG})"
+AWG=/usr/bin/awg
+if [ ! -x $AWG ]; then
+	logger -t "amneziawg" "error: missing amneziawg-tools (${AWG})"
 	exit 0
 fi
 
@@ -38,7 +38,7 @@ proto_amneziawg_init_config() {
 
 proto_amneziawg_is_kernel_mode() {
 	if [ ! -e /sys/module/amneziawg ]; then
-		modprobe amneziawg >/dev/null 2>&1 || true
+		modprobe amneziawg > /dev/null 2>&1 || true
 
 		if [ -e /sys/module/amneziawg ]; then
 			return 0
@@ -87,13 +87,13 @@ proto_amneziawg_setup_peer() {
 		return 0
 	fi
 
-	echo "[Peer]" >> "${wg_cfg}"
-	echo "PublicKey=${public_key}" >> "${wg_cfg}"
+	echo "[Peer]" >> "${awg_cfg}"
+	echo "PublicKey=${public_key}" >> "${awg_cfg}"
 	if [ "${preshared_key}" ]; then
-		echo "PresharedKey=${preshared_key}" >> "${wg_cfg}"
+		echo "PresharedKey=${preshared_key}" >> "${awg_cfg}"
 	fi
-	for allowed_ip in $allowed_ips; do
-		echo "AllowedIPs=${allowed_ip}" >> "${wg_cfg}"
+	for allowed_ip in ${allowed_ips}; do
+		echo "AllowedIPs=${allowed_ip}" >> "${awg_cfg}"
 	done
 	if [ "${endpoint_host}" ]; then
 		case "${endpoint_host}" in
@@ -109,13 +109,13 @@ proto_amneziawg_setup_peer() {
 		else
 			endpoint="${endpoint}:51820"
 		fi
-		echo "Endpoint=${endpoint}" >> "${wg_cfg}"
+		echo "Endpoint=${endpoint}" >> "${awg_cfg}"
 	fi
 	if [ "${persistent_keepalive}" ]; then
-		echo "PersistentKeepalive=${persistent_keepalive}" >> "${wg_cfg}"
+		echo "PersistentKeepalive=${persistent_keepalive}" >> "${awg_cfg}"
 	fi
 
-	if [ "${route_allowed_ips}" -ne 0 ]; then
+	if [ ${route_allowed_ips} -ne 0 ]; then
 		for allowed_ip in ${allowed_ips}; do
 			case "${allowed_ip}" in
 				*:*/*)
@@ -139,12 +139,12 @@ ensure_key_is_generated() {
 	local private_key
 	private_key="$(uci get network."$1".private_key)"
 
-	if [ "$private_key" = "generate" ]; then
+	if [ "$private_key" == "generate" ]; then
 		local ucitmp
 		oldmask="$(umask)"
 		umask 077
 		ucitmp="$(mktemp -d)"
-		private_key="$("${WG}" genkey)"
+		private_key="$("${AWG}" genkey)"
 		uci -q -t "$ucitmp" set network."$1".private_key="$private_key" && \
 			uci -q -t "$ucitmp" commit network
 		rm -rf "$ucitmp"
@@ -154,8 +154,8 @@ ensure_key_is_generated() {
 
 proto_amneziawg_setup() {
 	local config="$1"
-	local wg_dir="/tmp/wireguard"
-	local wg_cfg="${wg_dir}/${config}"
+	local awg_dir="/tmp/amneziawg"
+	local awg_cfg="${awg_dir}/${config}"
 
 	local private_key
 	local listen_port
@@ -166,7 +166,7 @@ proto_amneziawg_setup() {
 	local nohostroute
 	local tunlink
 
-	# Amnezia WG specific parameters
+	# AmneziaWG specific parameters
 	local awg_jc
 	local awg_jmin
 	local awg_jmax
@@ -200,11 +200,11 @@ proto_amneziawg_setup() {
 	config_get awg_h4 "${config}" "awg_h4"
 
 	if proto_amneziawg_is_kernel_mode; then
-		logger -t "amneziawg" "info: using kernel-space kmod-amneziawg for ${WG}"
+		logger -t "amneziawg" "info: using kernel-space kmod-amneziawg for ${AWG}"
   	ip link del dev "${config}" 2>/dev/null
 		ip link add dev "${config}" type amneziawg
 	else
-		logger -t "amneziawg" "info: using user-space amneziawg-go for ${WG}"
+		logger -t "amneziawg" "info: using user-space amneziawg-go for ${AWG}"
 		rm -f "/var/run/wireguard/${config}.sock"
 		amneziawg-go "${config}"
 	fi
@@ -216,53 +216,53 @@ proto_amneziawg_setup() {
 	proto_init_update "${config}" 1
 
 	umask 077
-	mkdir -p "${wg_dir}"
-	echo "[Interface]" > "${wg_cfg}"
-	echo "PrivateKey=${private_key}" >> "${wg_cfg}"
+	mkdir -p "${awg_dir}"
+	echo "[Interface]" > "${awg_cfg}"
+	echo "PrivateKey=${private_key}" >> "${awg_cfg}"
 	if [ "${listen_port}" ]; then
-		echo "ListenPort=${listen_port}" >> "${wg_cfg}"
+		echo "ListenPort=${listen_port}" >> "${awg_cfg}"
 	fi
 	if [ "${fwmark}" ]; then
-		echo "FwMark=${fwmark}" >> "${wg_cfg}"
+		echo "FwMark=${fwmark}" >> "${awg_cfg}"
 	fi
-	# AWG
+	# AmneziaWG parameters
 	if [ "${awg_jc}" ]; then
-		echo "Jc = ${awg_jc}" >> "${wg_cfg}"
+		echo "Jc=${awg_jc}" >> "${awg_cfg}"
 	fi
 	if [ "${awg_jmin}" ]; then
-		echo "Jmin = ${awg_jmin}" >> "${wg_cfg}"
+		echo "Jmin=${awg_jmin}" >> "${awg_cfg}"
 	fi
 	if [ "${awg_jmax}" ]; then
-		echo "Jmax = ${awg_jmax}" >> "${wg_cfg}"
+		echo "Jmax=${awg_jmax}" >> "${awg_cfg}"
 	fi
 	if [ "${awg_s1}" ]; then
-		echo "S1 = ${awg_s1}" >> "${wg_cfg}"
+		echo "S1=${awg_s1}" >> "${awg_cfg}"
 	fi
 	if [ "${awg_s2}" ]; then
-		echo "S2 = ${awg_s2}" >> "${wg_cfg}"
+		echo "S2=${awg_s2}" >> "${awg_cfg}"
 	fi
 	if [ "${awg_h1}" ]; then
-		echo "H1 = ${awg_h1}" >> "${wg_cfg}"
+		echo "H1=${awg_h1}" >> "${awg_cfg}"
 	fi
 	if [ "${awg_h2}" ]; then
-		echo "H2 = ${awg_h2}" >> "${wg_cfg}"
+		echo "H2=${awg_h2}" >> "${awg_cfg}"
 	fi
 	if [ "${awg_h3}" ]; then
-		echo "H3 = ${awg_h3}" >> "${wg_cfg}"
+		echo "H3=${awg_h3}" >> "${awg_cfg}"
 	fi
 	if [ "${awg_h4}" ]; then
-		echo "H4 = ${awg_h4}" >> "${wg_cfg}"
+		echo "H4=${awg_h4}" >> "${awg_cfg}"
 	fi
 
 	config_foreach proto_amneziawg_setup_peer "amneziawg_${config}"
 
-	# apply configuration file
-	${WG} setconf "${config}" "${wg_cfg}"
-	WG_RETURN=$?
+	# Apply configuration file
+	${AWG} setconf "${config}" "${awg_cfg}"
+	AWG_RETURN=$?
 
-	rm -f "${wg_cfg}"
+	rm -f "${awg_cfg}"
 
-	if [ ${WG_RETURN} -ne 0 ]; then
+	if [ ${AWG_RETURN} -ne 0 ]; then
 		sleep 5
 		proto_setup_failed "${config}"
 		exit 1
@@ -291,8 +291,8 @@ proto_amneziawg_setup() {
 
 	# endpoint dependency
 	if [ "${nohostroute}" != "1" ]; then
-# shellcheck disable=SC2034
-		${WG} show "${config}" endpoints | \
+		# shellcheck disable=SC2034
+		${AWG} show "${config}" endpoints | \
 		sed -E 's/\[?([0-9.:a-f]+)\]?:([0-9]+)/\1 \2/' | \
 		while IFS=$'\t ' read -r key address port; do
 			[ -n "${port}" ] || continue
@@ -305,11 +305,10 @@ proto_amneziawg_setup() {
 
 proto_amneziawg_teardown() {
 	local config="$1"
-	proto_amneziawg_check_installed
 	if proto_amneziawg_is_kernel_mode; then
 		ip link del dev "${config}" >/dev/null 2>&1
 	else
-		rm -f "/var/run/amneziawg/${config}.sock"
+		rm -f "/var/run/wireguard/${config}.sock"
 	fi
 }
 

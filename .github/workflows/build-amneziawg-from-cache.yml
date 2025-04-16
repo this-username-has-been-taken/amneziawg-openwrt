@@ -1,0 +1,110 @@
+name: Build AmneziaWG from cache
+
+on:
+  workflow_dispatch:
+    inputs:
+      openwrt_version:
+        description: "OpenWrt version"
+        type: string
+        required: true
+        default: "SNAPSHOT"
+      openwrt_arch:
+        description: "OpenWrt arch"
+        type: string
+        required: true
+        default: "aarch64_cortex-a53"
+      openwrt_target:
+        description: "OpenWrt target"
+        type: string
+        required: true
+        default: "mediatek"
+      openwrt_subtarget:
+        description: "OpenWrt subtarget"
+        type: string
+        required: true
+        default: "filogic"
+      openwrt_vermagic:
+        description: "OpenWrt vermagic"
+        type: string
+        required: true
+        default: "any"
+
+jobs:
+  build:
+    name: "Build AmneziaWG for OpenWrt: ${{ matrix.build_env.tag }} - ${{ matrix.build_env.pkgarch }} :: ${{ matrix.build_env.target }}/${{ matrix.build_env.subtarget }}"
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        build_env:
+          - tag: ${{ inputs.openwrt_version }}
+            pkgarch: ${{ inputs.openwrt_arch }}
+            target: ${{ inputs.openwrt_target }}
+            subtarget: ${{ inputs.openwrt_subtarget }}
+            vermagic: ${{ inputs.openwrt_vermagic }}
+
+    env:
+      OPENWRT_RELEASE: ${{ matrix.build_env.tag }}
+      OPENWRT_ARCH: ${{ matrix.build_env.pkgarch }}
+      OPENWRT_TARGET: ${{ matrix.build_env.target }}
+      OPENWRT_SUBTARGET: ${{ matrix.build_env.subtarget }}
+      OPENWRT_VERMAGIC: ${{ matrix.build_env.vermagic }}
+
+    steps:
+      - name: Checkout amneziawg-openwrt
+        uses: actions/checkout@v4
+        with:
+          path: amneziawg-openwrt
+          fetch-depth: 0
+
+      - name: Checkout OpenWrt snapshot repository
+        uses: actions/checkout@v4
+        if: ${{ matrix.build_env.tag == 'SNAPSHOT' }}
+        with:
+          path: openwrt
+          repository: openwrt/openwrt
+          fetch-depth: 0
+      
+      - name: Checkout OpenWrt regular repository
+        uses: actions/checkout@v4
+        if: ${{ matrix.build_env.tag != 'SNAPSHOT' }}
+        with:
+          path: openwrt
+          repository: openwrt/openwrt
+          ref: v${{ matrix.build_env.tag }}
+          fetch-depth: 0
+
+      - name: Restore cached tools and kernel
+        id: cache-tools-kernel-restore
+        uses: actions/cache/restore@v4
+        with:
+          fail-on-cache-miss: true
+          key: ${{ runner.os }}-openwrt-cache-toolchain-kernel-${{ matrix.build_env.tag }}-${{ matrix.build_env.pkgarch }}-${{ matrix.build_env.target }}-${{ matrix.build_env.subtarget }}
+          restore-keys: |
+            ${{ runner.os }}-openwrt-cache-tools-kernel-${{ matrix.build_env.pkgarch }}-
+          path: |
+            openwrt/.config
+            openwrt/.config.old
+            openwrt/feeds.conf
+            openwrt/bin/**
+            openwrt/build_dir/**
+            openwrt/dl/**
+            openwrt/feeds/**
+            openwrt/package/**
+            openwrt/staging_dir/**
+            openwrt/tmp/**
+
+      - name: Build AmneziaWG
+        id: build-amneziawg
+        run: |
+          set -x
+          cd amneziawg-openwrt
+          make show-env
+          make export-env >> $GITHUB_OUTPUT
+          time -p make build-amneziawg
+          make prepare-artifacts
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: amneziawg-${{ matrix.build_env.tag }}_${{ matrix.build_env.pkgarch}}_${{ matrix.build_env.target}}_${{ matrix.build_env.subtarget}}_${{ steps.build-amneziawg.outputs.final_vermagic }}
+          path: awgrelease/*
