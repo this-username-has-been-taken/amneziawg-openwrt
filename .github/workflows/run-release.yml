@@ -1,0 +1,66 @@
+name: Sync OpenWRT Releases
+
+on:
+  # schedule:
+   # - cron: '0 0 */3 * *' # Проверка новых релизов раз в три дня
+  workflow_dispatch: # Возможность вручную запустить Action
+
+jobs:
+  sync-releases:
+    runs-on: ubuntu-latest
+    outputs:
+      release_exists: ${{ steps.check_release.outputs.release_exists }}
+      release_tag: ${{ steps.get_release.outputs.release_tag }} 
+    steps:
+      - name: Checkout your repo
+        uses: actions/checkout@v4
+
+      - name: Get the latest release from OpenWRT
+        id: get_release
+        run: |
+          curl -s https://api.github.com/repos/openwrt/openwrt/releases/latest > latest_release.json
+          RELEASE_TAG=$(jq -r .tag_name latest_release.json)
+          RELEASE_NAME=$(jq -r .name latest_release.json)
+          echo "::set-output name=release_tag::$RELEASE_TAG"
+          echo "::set-output name=release_name::$RELEASE_NAME"
+
+      - name: Check if release exists in your repo
+        id: check_release
+        run: |
+          RELEASE_EXISTS=$(curl -s https://api.github.com/repos/Slava-Shchipunov/awg-openwrt/releases/tags/${{ steps.get_release.outputs.release_tag }} | jq -r .tag_name)
+          if [ "$RELEASE_EXISTS" == "null" ]; then
+            echo "::set-output name=release_exists::false"
+          else
+            echo "::set-output name=release_exists::true"
+          fi
+
+      - name: Create release in your repo
+        if: steps.check_release.outputs.release_exists == 'false'
+        run: |
+          ART="
+          \`\`\`
+            _______                     ________        __
+           |       |.-----.-----.-----.|  |  |  |.----.|  |_
+           |   -   ||  _  |  -__|     ||  |  |  ||   _||   _|
+           |_______||   __|_____|__|__||________||__|  |____|
+                    |__| A M N E Z I A   W I R E G U A R D
+          -----------------------------------------------------
+          OpenWrt ${{ steps.get_release.outputs.release_tag }}
+          -----------------------------------------------------
+          \`\`\`"
+
+          curl -X POST https://api.github.com/repos/Slava-Shchipunov/awg-openwrt/releases \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg tag "${{ steps.get_release.outputs.release_tag }}" \
+                    --arg name "Build amnezia wg for all devices with openwrt ${{ steps.get_release.outputs.release_tag }}" \
+                    --arg body "$ART" \
+                    '{ tag_name: $tag, name: $name, body: $body }')"
+  
+  run-build:
+    runs-on: ubuntu-latest
+    needs: sync-releases
+    if: needs.sync-releases.outputs.release_exists == 'false'
+    uses: Slava-Shchipunov/awg-openwrt/.github/workflows/build-module.yml@master
+    with:
+      tag_name: ${{ needs.sync-releases.outputs.release_tag }}
