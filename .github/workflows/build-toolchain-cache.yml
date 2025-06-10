@@ -32,7 +32,8 @@ on:
 jobs:
   build:
     name: "Build toolchain cache for OpenWrt: ${{ matrix.build_env.tag }} - ${{ matrix.build_env.pkgarch }} :: ${{ matrix.build_env.target }}/${{ matrix.build_env.subtarget }}"
-    runs-on: ubuntu-22.04
+    #runs-on: ubuntu-22.04
+    runs-on: [self-hosted, linux]
     strategy:
       matrix:
         build_env:
