@@ -1,0 +1,148 @@
+name: Build OpenWrt toolchain cache
+
+on:
+  workflow_dispatch:
+    inputs:
+      openwrt_version:
+        description: "OpenWrt version"
+        type: string
+        required: true
+        default: "SNAPSHOT"
+      amneziawg_version:
+        description: "AmneziaWG version"
+        type: string
+        required: true
+        default: "master"
+      openwrt_target:
+        description: "OpenWrt target (например mediatek)"
+        type: string
+        required: true
+        default: "mediatek"
+      openwrt_subtarget:
+        description: "OpenWrt subtarget (например filogic)"
+        type: string
+        required: true
+        default: "filogic"
+      update_go:
+        description: "Update Go version"
+        type: boolean
+        required: true
+        default: true
+
+jobs:
+  # --- 1. Получаем список архитектур с сайта OpenWrt ---
+  get-arches:
+    runs-on: ubuntu-24.04
+    outputs:
+      arches: ${{ steps.parse.outputs.arches }}
+    steps:
+      - name: Get available architectures
+        id: parse
+        run: |
+          set -e
+          if [ "${{ inputs.openwrt_version }}" = "SNAPSHOT" ]; then
+            BASE="https://downloads.openwrt.org/snapshots/targets/${{ inputs.openwrt_target }}/${{ inputs.openwrt_subtarget }}"
+          else
+            BASE="https://downloads.openwrt.org/releases/${{ inputs.openwrt_version }}/targets/${{ inputs.openwrt_target }}/${{ inputs.openwrt_subtarget }}"
+          fi
+
+          # Берём список rootfs.tar.gz и вытаскиваем имя архитектуры
+          curl -fsSL "$BASE/sha256sums" \
+            | grep 'rootfs.tar.gz' \
+            | sed -E 's/.*openwrt-[^-]+-[^-]+-([^-]+)-rootfs.*/\1/' \
+            | sort -u > arches.txt
+
+          echo "Найдены архитектуры:"
+          cat arches.txt
+          # Преобразуем в JSON-массив для матрицы
+          ARCHES_JSON=$(jq -R . < arches.txt | jq -s .)
+          echo "arches=$ARCHES_JSON" >> "$GITHUB_OUTPUT"
+
+  # --- 2. Параллельная сборка для каждой архитектуры ---
+  build-toolchain-cache:
+    needs: get-arches
+    name: Build AmneziaWG for ${{ matrix.arch }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: ${{ fromJson(needs.get-arches.outputs.arches) }}
+    steps:
+      - name: Checkout YAAWG repository
+        uses: actions/checkout@v5
+        with:
+          path: amneziawg
+          ref: ${{ inputs.amneziawg_version }}
+          fetch-depth: 0
+
+      - name: Checkout OpenWrt repository
+        uses: actions/checkout@v5
+        with:
+          path: openwrt
+          repository: openwrt/openwrt
+          ref: ${{ inputs.openwrt_version == 'SNAPSHOT' && 'master' || format('v{0}', inputs.openwrt_version) }}
+          fetch-depth: 0
+
+      - name: Checkout OpenWRT Packages repository
+        if: ${{ inputs.update_go }}
+        uses: actions/checkout@v5
+        with:
+          path: packages
+          repository: openwrt/packages
+          fetch-depth: 0
+
+      - name: Update feeds
+        run: |
+          set -e -x
+          cd openwrt
+          echo "src-cpy awgopenwrt ../amneziawg" >> feeds.conf.default
+          ./scripts/feeds update -a
+          if [ "${{ inputs.openwrt_version }}" = "SNAPSHOT" ]; then
+            base_url="https://downloads.openwrt.org/snapshots/targets/${{ inputs.openwrt_target }}/${{ inputs.openwrt_subtarget }}"
+          else
+            base_url="https://downloads.openwrt.org/releases/${{ inputs.openwrt_version }}/targets/${{ inputs.openwrt_target }}/${{ inputs.openwrt_subtarget }}"
+          fi
+          curl -fsL "$base_url/config.buildinfo" > .config
+          echo "CONFIG_TARGET_${{ inputs.openwrt_target }}_${{ inputs.openwrt_subtarget }}=y" >> .config
+          echo "CONFIG_TARGET_${{ inputs.openwrt_target }}_${{ inputs.openwrt_subtarget }}_${{ matrix.arch }}=y" >> .config
+          echo "CONFIG_PACKAGE_kmod-crypto-lib-chacha20=y" >> .config
+          echo "CONFIG_PACKAGE_kmod-crypto-lib-chacha20poly1305=y" >> .config
+          echo "CONFIG_PACKAGE_kmod-crypto-chacha20poly1305=y" >> .config
+          echo "CONFIG_PACKAGE_kmod-amneziawg=y" >> .config
+          echo "CONFIG_PACKAGE_amneziawg-go=y" >> .config
+          echo "CONFIG_PACKAGE_amneziawg-tools=y" >> .config
+          echo "CONFIG_PACKAGE_luci-proto-amneziawg=y" >> .config
+
+      - name: Update Go version
+        if: ${{ inputs.update_go }}
+        run: |
+          set -e -x
+          rm -r openwrt/feeds/packages/lang/golang
+          cp -r packages/lang/golang openwrt/feeds/packages/lang
+
+      - name: Build toolchain and kernel
+        run: |
+          set -e -x
+          cd openwrt
+          ./scripts/feeds install -a
+          make defconfig
+          make tools/install -j"$(nproc)" --output-sync
+          make toolchain/install -j"$(nproc)" --output-sync
+          make target/linux/compile -j"$(nproc)" --output-sync
+          find . -xtype l -print -delete
+
+      - name: Save toolchain and kernel cache
+        uses: actions/cache/save@v4
+        with:
+          key: ${{ runner.os }}-openwrt-cache-toolchain-kernel-${{ inputs.openwrt_version }}-${{ matrix.arch }}-${{ inputs.openwrt_target }}-${{ inputs.openwrt_subtarget }}
+          path: |
+            openwrt/.config
+            openwrt/.config.old
+            openwrt/feeds.conf.default
+            openwrt/bin/**
+            openwrt/build_dir/**
+            openwrt/dl/**
+            openwrt/feeds/**
+            openwrt/package/**
+            openwrt/staging_dir/**
+            openwrt/tmp/**
