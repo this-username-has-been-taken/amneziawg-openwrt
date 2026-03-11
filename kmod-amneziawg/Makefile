@@ -9,7 +9,7 @@ PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/amnezia-vpn/amneziawg-linux-kernel-module.git
 PKG_SOURCE_VERSION:=v$(PKG_VERSION)
 
-PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
+PKG_BUILD_DIR:=$(KERNEL_BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
 MAKE_PATH:=src
 
 include $(INCLUDE_DIR)/package.mk
@@ -19,6 +19,7 @@ SECTION:=kernel
 CATEGORY:=Kernel modules
 SUBMENU:=Network Support
 TITLE:=AmneziaWG VPN Kernel Module
+VERSION:=$(PKG_VERSION)-$(LINUX_VERSION)
 FILES:=$(PKG_BUILD_DIR)/$(MAKE_PATH)/amneziawg.ko
 DEPENDS:=+kmod-udptunnel4 +kmod-udptunnel6 +kmod-crypto-kpp +kmod-crypto-lib-chacha20poly1305 +kmod-crypto-lib-curve25519
 endef
