@@ -4,11 +4,9 @@ include $(INCLUDE_DIR)/kernel.mk
 PKG_NAME:=kmod-amneziawg
 PKG_VERSION:=1.0.20260210
 PKG_RELEASE:=1
-WIREGUARD_VERSION:=1.0.0
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/amnezia-vpn/amneziawg-linux-kernel-module.git
-# Version: latest stable release tag
 PKG_SOURCE_VERSION:=v$(PKG_VERSION)
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
@@ -30,14 +28,12 @@ define KernelPackage/amneziawg
 		+kmod-crypto-lib-curve25519
 endef
 
-define Build/Prepare
-	$(call Build/Prepare/Default)
-	mkdir -p $(PKG_BUILD_DIR)/$(MAKE_PATH)/kernel
-	$(CP) $(LINUX_DIR)/* $(PKG_BUILD_DIR)/$(MAKE_PATH)/kernel/
-endef
-
 define Build/Compile
-	$(MAKE_VARS) $(MAKE) -C "$(LINUX_DIR)" $(KERNEL_MAKE_FLAGS) M="$(PKG_BUILD_DIR)/$(MAKE_PATH)" EXTRA_CFLAGS="$(BUILDFLAGS)" WIREGUARD_VERSION="$(WIREGUARD_VERSION)" modules
+	$(MAKE_VARS) $(MAKE) -C "$(LINUX_DIR)" \
+		$(KERNEL_MAKE_FLAGS) \
+		M="$(PKG_BUILD_DIR)/$(MAKE_PATH)" \
+		EXTRA_CFLAGS="$(BUILDFLAGS)" \
+		modules
 endef
 
 $(eval $(call KernelPackage,amneziawg))
