@@ -3,15 +3,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=amneziawg-go
-PKG_VERSION:=2.0.9
+PKG_VERSION:=0.2.16
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/amnezia-vpn/amneziawg-go.git
-PKG_MIRROR_HASH:=a8663e9feb193b9b65e38b469d5a422ca09a3ac3de1b35a3f4a4e3a006e91237
-# Reference: master branch
-PKG_SOURCE_VERSION:=449d7cffd4adf86971bd679d0be5384b443e8be5
-PKG_MIRROR_HASH:=a8663e9feb193b9b65e38b469d5a422ca09a3ac3de1b35a3f4a4e3a006e91237
+# Version: latest stable release tag
+PKG_SOURCE_VERSION:=v$(PKG_VERSION)
 
 PKG_BUILD_DEPENDS:=golang/host
 PKG_BUILD_PARALLEL:=1
