@@ -36,9 +36,6 @@ msgstr "Вставьте или перетащите файл конфигура
 msgid "Recommended. IP addresses of the AmneziaWG interface."
 msgstr "Рекомендуемый. IP адреса интерфейса AmneziaWG."
 
-msgid "Imports settings from an existing AmneziaWG configuration file"
-msgstr "Импортирует настройки из существующего файла конфигурации AmneziaWG"
-
 msgid "AmneziaWG Settings"
 msgstr "Настройки AmneziaWG"
 
@@ -136,15 +133,23 @@ msgid ""
 msgstr ""
 "Необязательно. Закрытый ключ узла AmneziaWG. Ключ не требуется для "
 "установления соединения, но позволяет сгенерировать конфигурацию узла или QR-"
-"код, если он доступен. Он может быть удален после экспорта конфигурации."
+"код, если он доступен. Он может быть удалён после экспорта конфигурации."
 
 msgid "Generates a configuration suitable for import on a AmneziaWG peer"
-msgstr "Создает конфигурацию, подходящую для импорта на узле AmneziaWG"
+msgstr "Создаёт конфигурацию, подходящую для импорта на узле AmneziaWG"
 
 msgid ""
 "No fixed interface listening port defined, peers might not be able to "
 "initiate connections to this AmneziaWG instance!"
 msgstr ""
-"Не определен фиксированный порт прослушивания интерфейса, поэтому узлы могут "
+"Не определён фиксированный порт прослушивания интерфейса, поэтому узлы могут "
 "оказаться не в состоянии инициировать соединения с этим экземпляром "
 "AmneziaWG!"
+
+msgid "This is the prefix routed to you by your provider for use by clients"
+msgstr ""
+"Это IPv6-префикс, который провайдер маршрутизирует вам для использования "
+"клиентами"
+
+msgid "Download peer configuration file"
+msgstr "Скачать файл конфигурации узла"
