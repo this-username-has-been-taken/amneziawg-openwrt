@@ -44,12 +44,12 @@ The main differences and objectives are:
    - The package is now compiled based on the upstream repository.
    - Fixed a bug with the non-existent `proto_amneziawg_check_installed` method.
    - Changed temporary folders and files to match the protocol name.
-   - Refactored scripts to make them look more "amneziish."
+   - Refactored scripts to make them look more "amneziish".
    - Fixed a bug with an incorrect path when using `amneziawg-go`.
    - Added support for ranged H1-H4 parameters (with `-` delimiter, e.g., `123456-123500`).
    - Added support for v2.0 protocol parameters: S3-S4, I1-I5.
 
-3. `kmod-amneziawg` is now compiled entirely based on the upstream [amneziawg-linux-kernel-module](https://github.com/amnezia-vpn/amneziawg-linux-kernel-module) repository.
+3. `kmod-amneziawg` is now compiled entirely based on the upstream [amneziawg-linux-kernel-module](https://github.com/amnezia-vpn/amneziawg-linux-kernel-module) repository plus fixes from the community.
    - Added support for v2.0 protocol parameters: S3-S4, I1-I5.
 
 4. `amneziawg-go` acts as an alternative to `kmod-amneziawg`. Please refer to [this section](#kmod-amneziawg-vs-amneziawg-go) for more information. The Go implementation is fully based on the upstream project [amneziawg-go](https://github.com/amnezia-vpn/amneziawg-go).

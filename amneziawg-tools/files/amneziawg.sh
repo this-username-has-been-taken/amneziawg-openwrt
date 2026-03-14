@@ -50,7 +50,7 @@ proto_amneziawg_is_kernel_mode() {
 		if [ -e /sys/module/amneziawg ]; then
 			return 0
 		else
-			if ! command -v "${WG_QUICK_USERSPACE_IMPLEMENTATION:-amneziawg-go}" >/dev/null; then
+			if ! command -v "${AWG_QUICK_USERSPACE_IMPLEMENTATION:-amneziawg-go}" >/dev/null; then
 				ret=$?
 				echo "Please install either kernel module (kmod-amneziawg package) or user-space implementation in /usr/bin/amneziawg-go."
 				exit $ret
